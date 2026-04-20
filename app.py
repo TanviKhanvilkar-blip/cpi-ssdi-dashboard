@@ -81,8 +81,7 @@ st.markdown('<div class="main-header">📊 What Drives Consumer Price Inflation 
             unsafe_allow_html=True)
 st.markdown(
     '<div class="sub-header">'
-    'Statistical Analysis of CPI (2015–2025) &nbsp;|&nbsp; '
-    'MBATech Data Science SEM IV &nbsp;|&nbsp; SSDI Project &nbsp;|&nbsp; MPSTME NMIMS'
+    'Statistical Analysis of India Consumer Price Index (2015–2025)'
     '</div>', unsafe_allow_html=True)
 st.markdown("---")
 
@@ -204,7 +203,6 @@ elif section == "🧪 Hypothesis Testing":
 
     test_choice = st.selectbox("Select Test", [
         "Two-Sample t-Test: Pre-COVID vs Post-COVID CPI",
-        "One-Sample t-Test: Test a hypothesised mean CPI",
         "Z-Test: Large sample — Pre vs Post COVID"
     ])
     alpha = st.selectbox("Significance Level (α)", [0.01, 0.05, 0.10], index=1)
@@ -297,45 +295,6 @@ elif section == "🧪 Hypothesis Testing":
             ax.set_title('CPI Distribution: Pre vs Post COVID')
             ax.grid(True, alpha=0.3, axis='y')
             plt.tight_layout(); st.pyplot(fig); plt.close()
-
-    # ── One-sample t-test ──────────────────────────────────────────────────────
-    elif test_choice == "One-Sample t-Test: Test a hypothesised mean CPI":
-        mu0 = st.number_input("Hypothesised population mean (μ₀)", value=150.0, step=1.0)
-        st.markdown(f"""
-        **Hypotheses:**
-        - **H₀ :** μ = {mu0}
-        - **H₁ :** μ ≠ {mu0}
-        """)
-        X_arr = df['General'].values
-        n     = len(X_arr)
-        xbar  = np.mean(X_arr)
-        SD    = np.std(X_arr, ddof=1)
-        se    = SD / np.sqrt(n)
-        t_cal = (xbar - mu0) / se
-        df_t  = n - 1
-        t_crit = t.ppf(1 - alpha/2, df_t) if tail == "Two-tailed" \
-            else t.ppf(1 - alpha, df_t)
-
-        alt_map = {"Two-tailed": "two-sided",
-                   "One-tailed (right)": "greater",
-                   "One-tailed (left)": "less"}
-        lib_res = stats.ttest_1samp(X_arr, popmean=mu0, alternative=alt_map[tail])
-
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Sample Mean",  f"{xbar:.2f}")
-        c2.metric("t-calculated", f"{t_cal:.4f}")
-        c3.metric("p-value",      f"{lib_res.pvalue:.6f}")
-        st.metric("t-critical",
-                  f"±{t_crit:.4f}" if tail == "Two-tailed" else f"{t_crit:.4f}")
-
-        if lib_res.pvalue < alpha:
-            st.markdown(
-                f'<div class="reject-box">🔴 <b>Reject H₀</b> — Mean CPI is significantly '
-                f'different from {mu0}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(
-                f'<div class="accept-box">🟢 <b>Fail to Reject H₀</b> — Mean CPI not '
-                f'significantly different from {mu0}</div>', unsafe_allow_html=True)
 
     # ── Z-test ─────────────────────────────────────────────────────────────────
     else:
@@ -680,11 +639,4 @@ elif section == "🔵 Ridge & Lasso Regression":
             '<div class="info-box">ℹ️ Lasso retained all features at the selected alpha. '
             'Try increasing K.</div>', unsafe_allow_html=True)
 
-# ── Footer ────────────────────────────────────────────────────────────────────
-st.markdown("---")
-st.markdown(
-    "<div style='text-align:center;color:#999;font-size:0.82rem;'>"
-    "SSDI Project | MBATech Data Science SEM IV | MPSTME NMIMS | "
-    "Data: MoSPI eSankhyiki — CPI Base 2012=100 | All India Combined"
-    "</div>", unsafe_allow_html=True
-)
+
