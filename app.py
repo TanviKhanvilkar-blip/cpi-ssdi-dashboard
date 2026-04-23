@@ -161,7 +161,6 @@ section = st.sidebar.radio("", [
     "📊 ANOVA",
     "📈 OLS Linear Regression",
     "🔵 Ridge & Lasso Regression",
-    "🔮 CPI Forecasting 2026",
 ])
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Dataset:** MoSPI eSankhyiki")
@@ -265,8 +264,12 @@ elif section == "🧪 Hypothesis Testing":
         "Z-Test: Large sample — Pre vs Post COVID"
     ])
     alpha = st.selectbox("Significance Level (α)", [0.01, 0.05, 0.10], index=1)
-    tail  = st.radio("Tail", ["Two-tailed", "One-tailed (right)", "One-tailed (left)"],
-                     horizontal=True)
+
+    st.markdown(
+        '<div class="info-box">📌 <b>One-tailed right test</b> — We are testing whether '
+        'Post-COVID CPI is <b>higher</b> than Pre-COVID CPI. This is a directional hypothesis '
+        'because economic theory predicts COVID raises prices, not lowers them.</div>',
+        unsafe_allow_html=True)
 
     pre_data  = df[df['covid_period'] == 'Pre-COVID']['General'].values
     post_data = df[df['covid_period'] == 'Post-COVID']['General'].values
@@ -274,7 +277,7 @@ elif section == "🧪 Hypothesis Testing":
 
     if test_choice == "Two-Sample t-Test: Pre-COVID vs Post-COVID CPI":
         st.markdown("""
-        **Hypotheses:**
+        **Hypotheses (One-tailed right):**
         - **H₀ :** μ(Post-COVID) = μ(Pre-COVID)
         - **H₁ :** μ(Post-COVID) > μ(Pre-COVID)
         """)
@@ -283,52 +286,48 @@ elif section == "🧪 Hypothesis Testing":
         s1,  s2  = np.std(post_data, ddof=1), np.std(pre_data, ddof=1)
         sp   = np.sqrt(((n1-1)*s1**2 + (n2-1)*s2**2) / (n1+n2-2))
         se   = sp * np.sqrt(1/n1 + 1/n2)
-        t_cal = (xb1 - xb2) / se
-        df_t  = n1 + n2 - 2
-        if tail == "Two-tailed":
-            t_crit = t.ppf(1-alpha/2, df_t); p_val = 2*(1-t.cdf(abs(t_cal), df_t))
-        elif tail == "One-tailed (right)":
-            t_crit = t.ppf(1-alpha, df_t);   p_val = 1-t.cdf(t_cal, df_t)
-        else:
-            t_crit = t.ppf(alpha, df_t);     p_val = t.cdf(t_cal, df_t)
+        t_cal  = (xb1 - xb2) / se
+        df_t   = n1 + n2 - 2
+        t_crit = t.ppf(1 - alpha, df_t)
+        p_val  = 1 - t.cdf(t_cal, df_t)
 
         c1,c2,c3,c4 = st.columns(4)
         c1.metric("Pre-COVID Mean",  f"{xb2:.2f}")
         c2.metric("Post-COVID Mean", f"{xb1:.2f}")
         c3.metric("t-calculated",    f"{t_cal:.4f}")
         c4.metric("p-value",         f"{p_val:.6f}")
-        st.metric("t-critical", f"±{t_crit:.4f}" if tail=="Two-tailed" else f"{t_crit:.4f}")
+        st.metric("t-critical (one-tailed right)", f"{t_crit:.4f}")
 
         if p_val < alpha:
-            st.markdown(f'<div class="reject-box">🔴 <b>Reject H₀</b> — Post-COVID CPI is significantly higher (p={p_val:.4f} &lt; α={alpha})</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="reject-box">🔴 <b>Reject H₀</b> — Post-COVID CPI is significantly '
+                f'higher (p = {p_val:.4f} &lt; α = {alpha})</div>',
+                unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="accept-box">🟢 <b>Fail to Reject H₀</b> (p={p_val:.4f} ≥ α={alpha})</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="accept-box">🟢 <b>Fail to Reject H₀</b> '
+                f'(p = {p_val:.4f} ≥ α = {alpha})</div>',
+                unsafe_allow_html=True)
 
         col1, col2 = st.columns(2)
         with col1:
             fig, ax = new_fig(6, 4)
             x_r = np.linspace(-5, 25, 400)
             ax.plot(x_r, t.pdf(x_r, df_t), '#1a3a5c', linewidth=2, label='t-distribution')
-            ax.axvline(t_cal,       color='#e74c3c', linestyle='--', linewidth=2, label=f't-cal={t_cal:.2f}')
-            ax.axvline(abs(t_crit), color='#27ae60', linestyle='--', linewidth=2, label=f't-crit={abs(t_crit):.2f}')
-            if tail == "One-tailed (right)":
-                xf = np.linspace(t_crit, 25, 100)
-                ax.fill_between(xf, t.pdf(xf, df_t), alpha=0.3, color='#e74c3c', label='Rejection Region')
-            elif tail == "One-tailed (left)":
-                xf = np.linspace(-5, t_crit, 100)
-                ax.fill_between(xf, t.pdf(xf, df_t), alpha=0.3, color='#e74c3c', label='Rejection Region')
-            else:
-                ax.fill_between(np.linspace(-5,-abs(t_crit),100),
-                                t.pdf(np.linspace(-5,-abs(t_crit),100),df_t), alpha=0.3, color='#e74c3c')
-                xf=np.linspace(abs(t_crit),25,100)
-                ax.fill_between(xf, t.pdf(xf,df_t), alpha=0.3, color='#e74c3c', label='Rejection Region')
+            ax.axvline(t_cal,  color='#e74c3c', linestyle='--', linewidth=2,
+                       label=f't-cal = {t_cal:.2f}')
+            ax.axvline(t_crit, color='#27ae60', linestyle='--', linewidth=2,
+                       label=f't-crit = {t_crit:.2f}')
+            xf = np.linspace(t_crit, 25, 100)
+            ax.fill_between(xf, t.pdf(xf, df_t), alpha=0.3, color='#e74c3c',
+                            label='Rejection Region')
             ax.legend(fontsize=8)
-            apply_style(ax, f't-Distribution | df={df_t}', 't value', 'Density')
+            apply_style(ax, f't-Distribution | df={df_t} | One-tailed right', 't value', 'Density')
             plt.tight_layout(); st.pyplot(fig); plt.close()
 
         with col2:
             fig, ax = new_fig(6, 4)
-            ax.boxplot([pre_data, post_data], labels=['Pre-COVID','Post-COVID'],
+            ax.boxplot([pre_data, post_data], labels=['Pre-COVID', 'Post-COVID'],
                        patch_artist=True,
                        boxprops=dict(facecolor='#5b9bd5', alpha=0.5),
                        medianprops=dict(color='#e74c3c', linewidth=2),
@@ -339,41 +338,45 @@ elif section == "🧪 Hypothesis Testing":
 
     else:
         st.markdown("""
-        **Hypotheses (Large Sample Z-Test):**
+        **Hypotheses — Z-Test (One-tailed right):**
         - **H₀ :** μ(Post-COVID) = μ(Pre-COVID)
         - **H₁ :** μ(Post-COVID) > μ(Pre-COVID)
         """)
-        n1,n2    = len(post_data), len(pre_data)
-        xb1,xb2  = np.mean(post_data), np.mean(pre_data)
-        s1,s2    = np.std(post_data,ddof=1), np.std(pre_data,ddof=1)
-        se       = np.sqrt(s1**2/n1 + s2**2/n2)
-        z_cal    = (xb1-xb2)/se
-        if tail=="Two-tailed":
-            z_crit=norm.ppf(1-alpha/2); p_val=2*(1-norm.cdf(abs(z_cal)))
-        elif tail=="One-tailed (right)":
-            z_crit=norm.ppf(1-alpha);   p_val=1-norm.cdf(z_cal)
-        else:
-            z_crit=norm.ppf(alpha);     p_val=norm.cdf(z_cal)
+        n1, n2   = len(post_data), len(pre_data)
+        xb1, xb2 = np.mean(post_data), np.mean(pre_data)
+        s1,  s2  = np.std(post_data, ddof=1), np.std(pre_data, ddof=1)
+        se    = np.sqrt(s1**2/n1 + s2**2/n2)
+        z_cal  = (xb1 - xb2) / se
+        z_crit = norm.ppf(1 - alpha)
+        p_val  = 1 - norm.cdf(z_cal)
 
-        c1,c2,c3=st.columns(3)
-        c1.metric("z-calculated",f"{z_cal:.4f}")
-        c2.metric("z-critical",  f"{z_crit:.4f}")
-        c3.metric("p-value",     f"{p_val:.6f}")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("z-calculated", f"{z_cal:.4f}")
+        c2.metric("z-critical (one-tailed right)", f"{z_crit:.4f}")
+        c3.metric("p-value",      f"{p_val:.6f}")
+
         if p_val < alpha:
-            st.markdown(f'<div class="reject-box">🔴 <b>Reject H₀</b> (p={p_val:.4f} &lt; α={alpha})</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="reject-box">🔴 <b>Reject H₀</b> — Post-COVID CPI is significantly '
+                f'higher (p = {p_val:.4f} &lt; α = {alpha})</div>',
+                unsafe_allow_html=True)
         else:
-            st.markdown(f'<div class="accept-box">🟢 <b>Fail to Reject H₀</b></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="accept-box">🟢 <b>Fail to Reject H₀</b></div>',
+                unsafe_allow_html=True)
 
         fig, ax = new_fig(10, 4)
         x_r = np.linspace(-4, 25, 400)
         ax.plot(x_r, norm.pdf(x_r), '#1a3a5c', linewidth=2, label='Standard Normal')
-        ax.axvline(z_cal,  color='#e74c3c', linestyle='--', linewidth=2, label=f'z-cal={z_cal:.2f}')
-        ax.axvline(z_crit, color='#27ae60', linestyle='--', linewidth=2, label=f'z-crit={z_crit:.2f}')
-        if tail=="One-tailed (right)":
-            xf=np.linspace(z_crit,25,100)
-            ax.fill_between(xf, norm.pdf(xf), alpha=0.3, color='#e74c3c', label='Rejection Region')
+        ax.axvline(z_cal,  color='#e74c3c', linestyle='--', linewidth=2,
+                   label=f'z-cal = {z_cal:.2f}')
+        ax.axvline(z_crit, color='#27ae60', linestyle='--', linewidth=2,
+                   label=f'z-crit = {z_crit:.2f}')
+        xf = np.linspace(z_crit, 25, 100)
+        ax.fill_between(xf, norm.pdf(xf), alpha=0.3, color='#e74c3c',
+                        label='Rejection Region')
         ax.legend(fontsize=9)
-        apply_style(ax, f'Z-Test Distribution | α={alpha}', 'z value', 'Density')
+        apply_style(ax, f'Z-Test | One-tailed right | α={alpha}', 'z value', 'Density')
         plt.tight_layout(); st.pyplot(fig); plt.close()
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -641,136 +644,3 @@ elif section == "🔵 Ridge & Lasso Regression":
         st.markdown(f'<div class="accept-box">✅ <b>Lasso zeroed out:</b> {", ".join(zeroed)} — these sub-groups do not independently predict next month\'s General inflation</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="info-box">ℹ️ Lasso retained all features — all sub-group inflation rates contribute to next month\'s General inflation.</div>', unsafe_allow_html=True)
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# 6 — FORECASTING 2026
-# ═══════════════════════════════════════════════════════════════════════════════
-elif section == "🔮 CPI Forecasting 2026":
-    st.markdown('<div class="section-title">CPI Forecasting — 2026 Projections</div>',
-                unsafe_allow_html=True)
-    st.markdown("""
-    OLS polynomial time-trend model fit on historical data and extrapolated forward 12 months.
-    Shaded bands show the confidence interval. Historical data is shown alongside so you can
-    see continuity from past to forecast.
-    """)
-
-    conf_level     = st.slider("Confidence Interval Level (%)", 80, 99, 95)
-    show_subgroups = st.multiselect("Select sub-groups to forecast",
-                                    options=X_COLS, default=X_COLS,
-                                    format_func=lambda x: x.replace('_',' '))
-
-    df_fc = df.copy()
-    df_fc['t']  = np.arange(len(df_fc))
-    df_fc['t2'] = df_fc['t'] ** 2
-    alpha_fc = 1 - conf_level/100
-
-    future_dates = pd.date_range('2026-01-01', periods=12, freq='MS')
-    last_t       = df_fc['t'].max()
-    future_t     = np.arange(last_t+1, last_t+13)
-    future_df    = pd.DataFrame({'t': future_t, 't2': future_t**2})
-
-    def forecast_series(col):
-        fit  = smf.ols(f'{col} ~ t + t2', data=df_fc).fit()
-        pred = fit.get_prediction(future_df)
-        mean = pred.predicted_mean
-        ci   = pred.conf_int(alpha=alpha_fc)
-        return mean, ci[:,0], ci[:,1]
-
-    st.markdown("---")
-    st.markdown("#### 📈 General CPI Forecast — 2026")
-
-    gen_mean, gen_lo, gen_hi = forecast_series('General')
-    last_hist_date  = df_fc['date'].iloc[-1]
-    last_hist_value = df_fc['General'].iloc[-1]
-
-    # Connect: prepend the last historical point to the forecast arrays
-    connected_dates  = np.concatenate([[last_hist_date],  future_dates])
-    connected_mean   = np.concatenate([[last_hist_value], gen_mean])
-    connected_lo     = np.concatenate([[last_hist_value], gen_lo])
-    connected_hi     = np.concatenate([[last_hist_value], gen_hi])
-
-    fig, ax = new_fig(13, 4)
-    ax.plot(df_fc['date'], df_fc['General'],
-            color='#1a3a5c', linewidth=2, label='Historical General CPI')
-    ax.plot(connected_dates, connected_mean,
-            color='#e74c3c', linewidth=2.5, linestyle='--', label='Forecast 2026')
-    ax.fill_between(connected_dates, connected_lo, connected_hi,
-                    alpha=0.2, color='#e74c3c', label=f'{conf_level}% CI')
-    ax.axvline(pd.Timestamp('2020-01-01'), color='#999999', linestyle='--',
-               linewidth=1.2, alpha=0.6, label='COVID Start')
-    ax.legend(fontsize=9)
-    apply_style(ax, 'General CPI — Historical & 2026 Forecast', 'Date', 'CPI Index')
-    plt.tight_layout(); st.pyplot(fig); plt.close()
-
-    # Forecast table
-    fc_table = pd.DataFrame({
-        'Month':                  future_dates.strftime('%b 2026'),
-        'Forecasted General CPI': gen_mean.round(2),
-        f'Lower {conf_level}% CI': gen_lo.round(2),
-        f'Upper {conf_level}% CI': gen_hi.round(2),
-    })
-    st.dataframe(fc_table, use_container_width=True)
-
-    exp_change = gen_mean[-1] - last_hist_value
-    st.markdown(
-        f'<div class="info-box">📌 <b>Forecast summary:</b> General CPI projected to rise from '
-        f'<b>{last_hist_value:.1f}</b> (Dec 2025) to <b>{gen_mean[-1]:.1f}</b> by Dec 2026 — '
-        f'an increase of <b>{exp_change:.1f} points ({exp_change/last_hist_value*100:.1f}%)</b>.</div>',
-        unsafe_allow_html=True)
-
-    # Sub-group forecasts
-    if show_subgroups:
-        st.markdown("---")
-        st.markdown("#### 📊 Sub-Group CPI Forecasts — 2026")
-
-        n_plots = len(show_subgroups)
-        n_cols  = 2
-        n_rows  = (n_plots + 1) // 2
-        fig, axes = plt.subplots(n_rows, n_cols, figsize=(13, 4*n_rows),
-                                 facecolor=CHART_BG)
-        axes_flat = np.array(axes).flatten() if n_rows > 1 else list(axes)
-
-        for idx, col in enumerate(show_subgroups):
-            ax    = axes_flat[idx]
-            ax.set_facecolor(CHART_BG)
-            color = COLORS[X_COLS.index(col)]
-            sg_mean, sg_lo, sg_hi = forecast_series(col)
-
-            # Connect last historical point to forecast
-            last_sg_val = df_fc[col].iloc[-1]
-            c_dates = np.concatenate([[last_hist_date],  future_dates])
-            c_mean  = np.concatenate([[last_sg_val],     sg_mean])
-            c_lo    = np.concatenate([[last_sg_val],     sg_lo])
-            c_hi    = np.concatenate([[last_sg_val],     sg_hi])
-
-            ax.plot(df_fc['date'], df_fc[col],
-                    color=color, linewidth=1.8, alpha=0.9, label='Historical')
-            ax.plot(c_dates, c_mean,
-                    color='#e74c3c', linewidth=2, linestyle='--', label='Forecast')
-            ax.fill_between(c_dates, c_lo, c_hi,
-                            alpha=0.2, color='#e74c3c', label=f'{conf_level}% CI')
-            apply_style(ax, col.replace('_',' '), 'Date', 'CPI Index')
-            ax.legend(fontsize=7)
-
-        for idx in range(n_plots, len(axes_flat)):
-            axes_flat[idx].set_visible(False)
-
-        plt.tight_layout(); st.pyplot(fig); plt.close()
-
-        # Summary table
-        st.markdown("#### Forecast Summary — Dec 2026 vs Dec 2025")
-        rows = []
-        for col in show_subgroups:
-            sg_mean, sg_lo, sg_hi = forecast_series(col)
-            last_val = df_fc[col].iloc[-1]
-            rows.append({
-                'Sub-Group':              col.replace('_',' '),
-                'Dec 2025 (Actual)':      f"{last_val:.1f}",
-                'Dec 2026 (Forecast)':    f"{sg_mean[-1]:.1f}",
-                'Expected Change':        f"+{sg_mean[-1]-last_val:.1f}",
-                f'Lower {conf_level}% CI': f"{sg_lo[-1]:.1f}",
-                f'Upper {conf_level}% CI': f"{sg_hi[-1]:.1f}",
-            })
-        st.dataframe(pd.DataFrame(rows), use_container_width=True)
-
-    st.markdown('<div class="info-box">⚠️ <b>Limitation:</b> This uses a polynomial time-trend OLS model which does not account for external shocks like oil price changes, monsoon failures, or policy decisions. A time-series model like ARIMA would be more rigorous for production forecasting.</div>', unsafe_allow_html=True)
